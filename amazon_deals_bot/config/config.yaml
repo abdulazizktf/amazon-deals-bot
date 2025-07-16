@@ -1,0 +1,149 @@
+# إعدادات نظام Amazon Deals Bot
+# تاريخ الإنشاء: 11 يوليو 2025
+
+# إعدادات قاعدة البيانات
+database:
+  host: "localhost"
+  port: 3306
+  username: "amazon_bot"
+  password: "secure_password_2025"
+  database: "amazon_deals_bot"
+  charset: "utf8mb4"
+  pool_size: 10
+  max_overflow: 20
+
+# إعدادات Telegram Bot
+telegram:
+  bot_token: ""  # يجب إدخال التوكن الفعلي
+  api_url: "https://api.telegram.org/bot"
+  max_message_length: 4096
+  rate_limit:
+    messages_per_second: 30
+    messages_per_minute: 20
+    burst_limit: 100
+
+# إعدادات Web Scraping
+scraping:
+  base_url: "https://www.amazon.sa"
+  user_agents:
+    - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  
+  headers:
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+    Accept-Language: "ar,en-US;q=0.9,en;q=0.8"
+    Accept-Encoding: "gzip, deflate, br"
+    DNT: "1"
+    Connection: "keep-alive"
+    Upgrade-Insecure-Requests: "1"
+  
+  delays:
+    min_delay: 2  # ثواني
+    max_delay: 5  # ثواني
+    error_delay: 10  # ثواني
+  
+  retries:
+    max_retries: 3
+    backoff_factor: 2
+  
+  timeout: 30  # ثواني
+
+# إعدادات البروكسي (اختيارية)
+proxy:
+  enabled: false
+  rotation_enabled: false
+  proxies: []
+  # مثال:
+  # - "http://username:password@proxy1:port"
+  # - "http://username:password@proxy2:port"
+
+# إعدادات العروض
+deals:
+  min_discount_percentage: 15  # نسبة الخصم الدنيا
+  min_original_price: 50  # السعر الأصلي الأدنى بالريال
+  max_original_price: 10000  # السعر الأصلي الأقصى بالريال
+  
+  categories:
+    - "electronics"
+    - "computers"
+    - "mobile-phones"
+    - "home-kitchen"
+    - "fashion"
+    - "books"
+    - "sports-outdoors"
+    - "beauty"
+    - "automotive"
+    - "health-household"
+  
+  quality_scoring:
+    discount_weight: 0.4
+    rating_weight: 0.3
+    review_count_weight: 0.2
+    price_range_weight: 0.1
+
+# إعدادات الجدولة
+scheduling:
+  scraping_interval: 3600  # ثواني (كل ساعة)
+  message_sending_interval: 300  # ثواني (كل 5 دقائق)
+  cleanup_interval: 86400  # ثواني (كل يوم)
+  
+  peak_hours:  # ساعات الذروة (تكرار أكثر)
+    start: 9
+    end: 23
+    interval: 1800  # ثواني (كل 30 دقيقة)
+
+# إعدادات الرسائل
+messaging:
+  max_deals_per_message: 1
+  include_image: true
+  message_template: |
+    🔥 **عرض مميز من أمازون السعودية**
+    
+    📱 **{product_name}**
+    ⭐ التقييم: {rating}/5 ({review_count} مراجعة)
+    
+    💰 السعر الأصلي: ~~{original_price} ريال~~
+    🎯 السعر بعد الخصم: **{deal_price} ريال**
+    📉 نسبة الخصم: **{discount_percentage}%**
+    💵 توفر: **{savings} ريال**
+    
+    🛒 [اشتري الآن]({product_url})
+    
+    ⏰ العرض محدود - لا تفوت الفرصة!
+    
+    #عروض_أمازون #خصومات #السعودية
+
+# إعدادات السجلات
+logging:
+  level: "INFO"
+  format: "{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} | {message}"
+  rotation: "1 day"
+  retention: "30 days"
+  compression: "gz"
+  
+  files:
+    main: "logs/amazon_bot.log"
+    scraping: "logs/scraping.log"
+    telegram: "logs/telegram.log"
+    errors: "logs/errors.log"
+
+# إعدادات الأمان
+security:
+  encrypt_sensitive_data: true
+  max_login_attempts: 3
+  session_timeout: 3600  # ثواني
+  
+# إعدادات الأداء
+performance:
+  max_concurrent_scrapers: 5
+  database_pool_size: 10
+  cache_ttl: 3600  # ثواني
+  
+# إعدادات التطوير
+development:
+  debug_mode: false
+  test_mode: false
+  mock_telegram: false
+  save_html_files: false
+

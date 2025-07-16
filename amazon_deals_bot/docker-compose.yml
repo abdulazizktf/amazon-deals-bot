@@ -1,0 +1,187 @@
+# Docker Compose لنظام Amazon Deals Bot
+# تاريخ الإنشاء: 11 يوليو 2025
+
+version: '3.8'
+
+services:
+  # قاعدة البيانات MySQL
+  database:
+    image: mysql:8.0
+    container_name: amazon_deals_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password_2025}
+      MYSQL_DATABASE: amazon_deals_bot
+      MYSQL_USER: amazon_bot
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secure_password_2025}
+      TZ: Asia/Riyadh
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./setup_database.sql:/docker-entrypoint-initdb.d/setup_database.sql:ro
+      - ./config/mysql.cnf:/etc/mysql/conf.d/custom.cnf:ro
+    networks:
+      - amazon_deals_network
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Redis للتخزين المؤقت (اختياري)
+  redis:
+    image: redis:7-alpine
+    container_name: amazon_deals_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - amazon_deals_network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # التطبيق الرئيسي
+  amazon_deals_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: amazon_deals_bot
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - CONFIG_PATH=/app/config/config.yaml
+      - DB_HOST=database
+      - DB_PORT=3306
+      - DB_USER=amazon_bot
+      - DB_PASSWORD=${DB_PASSWORD:-secure_password_2025}
+      - DB_NAME=amazon_deals_bot
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TZ=Asia/Riyadh
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - bot_data:/app/data/persistent
+    networks:
+      - amazon_deals_network
+    ports:
+      - "8000:8000"  # للمراقبة والإدارة
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # خدمة المراقبة (اختيارية)
+  monitoring:
+    image: prom/prometheus:latest
+    container_name: amazon_deals_monitoring
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - amazon_deals_network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+
+  # لوحة المراقبة Grafana (اختيارية)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: amazon_deals_grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - amazon_deals_network
+
+  # Nginx للـ reverse proxy (اختياري)
+  nginx:
+    image: nginx:alpine
+    container_name: amazon_deals_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - amazon_deals_network
+    depends_on:
+      - amazon_deals_bot
+
+# الشبكات
+networks:
+  amazon_deals_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# التخزين المستمر
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+  bot_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  nginx_logs:
+    driver: local
+
+# إعدادات إضافية
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# تطبيق إعدادات السجلات على جميع الخدمات
+services:
+  database:
+    logging: *default-logging
+  redis:
+    logging: *default-logging
+  amazon_deals_bot:
+    logging: *default-logging
+  monitoring:
+    logging: *default-logging
+  grafana:
+    logging: *default-logging
+  nginx:
+    logging: *default-logging
+
